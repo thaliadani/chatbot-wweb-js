@@ -1,22 +1,15 @@
-const { generate } = require('qrcode-terminal');
+const qrcode = require('qrcode-terminal');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 
 const client = new Client({
     authStrategy:new LocalAuth({
         dataPath: 'data'
     }),
-    puppeteer: {
-        headless: false,
-        args: [ 
-            '--no-sandbox',
-            '--disable-setuid-sandbox'
-        ]
-    }
 });
 
 client.on('qr',(qr)=>{
     console.log('QR Code recebido, escaneie no seu terminal:');
-    generate(qr,{small: true});
+    qrcode.generate(qr,{small: true});
 });
 
 client.on('auth_failure', msg => {
@@ -29,7 +22,7 @@ client.on('disconnected', reason => {
 })
 
 client.on('ready', () =>{
-    console.log('Client is ready!');
+    console.log('Cliente conectado!');
 });
 
 client.on('message', message =>{
