@@ -19,19 +19,15 @@ Este projeto implementa um **ChatBot** utilizando a biblioteca **`whatsapp-web.j
 
 ### ⚙️ Tecnologias Utilizadas
 
-**Tecnologia**
-
-**Descrição**
-
-**Node.js**
+- **Node.js**
 
 Ambiente de _runtime_ para execução do código JavaScript no servidor.
 
-**`whatsapp-web.js`**
+- **`whatsapp-web.js`**
 
 Biblioteca que fornece uma interface para o WhatsApp Web.
 
-**JavaScript (ES6+)**
+- **JavaScript (ES6+)**
 
 Linguagem de programação principal.
 
