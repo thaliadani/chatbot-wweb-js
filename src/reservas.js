@@ -1,9 +1,12 @@
 const fs = require("fs");
+const path = require("path");
+
+const reservasPath = path.join(__dirname, "..", "reservas.json");
 
 // Lê o arquivo de reservas
 function carregarReservas() {
     try {
-        const data = fs.readFileSync("../reservas.json", "utf8");
+        const data = fs.readFileSync(reservasPath, "utf8");
         return JSON.parse(data);
     } catch (error) {
         return [];
@@ -15,7 +18,12 @@ function salvarReservas(novaReserva) {
     const reservas = carregarReservas();
     reservas.push(novaReserva);
 
-    fs.writeFileSync("../reservas.json", JSON.stringify(reservas, null, 4), "utf8");
+    salvarTodasReservas(reservas);
+}
+
+// Salva todas as reservas no arquivo JSON
+function salvarTodasReservas(reservas) {
+    fs.writeFileSync(reservasPath, JSON.stringify(reservas, null, 4), "utf8");
 }
 
 // Buscar reserva no arquivo json
@@ -27,3 +35,10 @@ function buscarReserva(nome, celular) {
         r.celular.replace(/\D/g, "") === celular.replace(/\D/g, "")
     );
 }
+
+module.exports = {
+    carregarReservas,
+    salvarReservas,
+    salvarTodasReservas,
+    buscarReserva
+};

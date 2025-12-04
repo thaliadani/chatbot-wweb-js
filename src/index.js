@@ -1,7 +1,6 @@
 const qrcode = require('qrcode-terminal');
-const { useId } = require('react');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const { salvarReservas, buscarReserva } = require('./reservas.js')
+const { salvarReservas, buscarReserva, carregarReservas, salvarTodasReservas } = require('./reservas.js')
 
 const client = new Client({
     authStrategy: new LocalAuth({
@@ -53,6 +52,7 @@ client.on('ready', () => {
 client.on('message', async message => {
     const chat = await message.getChat();
     let user = await message.getContact();
+    const userId = message.from;
 
     if (message.body === "Quero ver minha reserva") {
         usuarios[userId] = {
@@ -69,9 +69,9 @@ client.on('message', async message => {
         return;
     }
 
-    if (!usuarios[useId]) return;
+    if (!usuarios[userId]) return;
 
-    const fluxo = usuarios[useId];
+    const fluxo = usuarios[userId];
 
     switch (fluxo.estado) {
         //Fazer reserva
@@ -160,13 +160,13 @@ client.on('message', async message => {
 
             const reservaEncontrada = buscarReserva(fluxo.dados.nome, fluxo.dados.celular);
 
-            if (!reserva) {
+            if (!reservaEncontrada) {
                 await chat.sendMessage("❌ Não encontrei nenhuma reserva 😞");
                 delete usuarios[userId];
                 return;
             }
 
-            fluxo.reservaEncontrada = reserva;
+            fluxo.reservaEncontrada = reservaEncontrada;
             fluxo.estado = "acao_sobre_reserva";
 
             await chat.sendMessage(`
@@ -174,11 +174,11 @@ client.on('message', async message => {
 
                 👤 Nome: ${reserva.nome}
                 📱 Celular: ${reserva.celular}
-                📅 Data: ${reserva.data}
-                ⌚ Hora: ${reserva.hora}
-                👥 Pessoas: ${reserva.pessoas}
-                📝 Observação: ${reserva.observacao}
-                📧 E-mail: ${reserva.email || "Não informado"}
+                📅 Data: ${reservaEncontrada.data}
+                ⌚ Hora: ${reservaEncontrada.hora}
+                👥 Pessoas: ${reservaEncontrada.pessoas}
+                📝 Observação: ${reservaEncontrada.observacao}
+                📧 E-mail: ${reservaEncontrada.email || "Não informado"}
 
                 O que deseja fazer?
 
