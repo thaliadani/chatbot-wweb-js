@@ -1,6 +1,6 @@
 const qrcode = require('qrcode-terminal');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const { salvarReservas, buscarReserva, carregarReservas, salvarTodasReservas } = require('./reservas.js')
+const { salvarReservas, buscarReserva, carregarReservas, salvarTodasReservas, buscarReservaPorCelular } = require('./reservas.js')
 
 const client = new Client({
     authStrategy: new LocalAuth({
@@ -51,23 +51,23 @@ client.on('ready', () => {
 
 client.on('message', async message => {
     const chat = await message.getChat();
-    let user = await message.getContact();
     const userId = message.from;
+    const userName = message._data.notifyName || chat.name;
 
     if (message.body === "Quero ver minha reserva") {
         usuarios[userId] = {
-            estado: "ver_reserva_nome",
-            dados: {}
+            estado: "ver_reserva_celular_inicio",
+            dados: {},
         };
-        await chat.sendMessage("🔎 Vamos localizar sua reserva!\nQual seu nome completo?");
+        await chat.sendMessage(`*${nameBot}*: Olá, *${userName}*! 👋 Para encontrar sua reserva, pode me informar seu número de celular, por favor? (ex: (99) 99999-9999)`);
         return;
     }
 
     if (message.body === "Quero fazer uma reserva") {
         iniciarFluxo(userId)
-        await chat.sendMessage(`🙋‍♀️ Oi ${user.pushname} meu nome é ${nameBot} 🤖. Vamos fazer sua reserva!\nQual seu nome completo?`);
+        await chat.sendMessage(`*${nameBot}*: Olá, *${userName}*! Que bom ter você por aqui. 😊 Vamos começar sua reserva. Qual seu nome completo?`);
         return;
-    }
+    } 
 
     if (!usuarios[userId]) return;
 
@@ -78,43 +78,43 @@ client.on('message', async message => {
         case "esperando_nome":
             fluxo.dados.nome = message.body;
             fluxo.estado = "esperando_celular";
-            await chat.sendMessage("📱 Qual é seu número de celular?");
+            await chat.sendMessage(`*${nameBot}*: Obrigada, ${fluxo.dados.nome}! Agora, qual o seu número de celular? 📱 (ex: (99) 99999-9999)`);
             break;
 
         case "esperando_celular":
             fluxo.dados.celular = message.body;
             fluxo.estado = "esperando_data";
-            await chat.sendMessage("📅 Qual a data da reserva?");
+            await chat.sendMessage(`*${nameBot}*: Perfeito! E para qual data você gostaria de reservar? 📅 (ex: DD/MM/AAAA)`);
             break;
 
         case "esperando_data":
             fluxo.dados.data = message.body;
             fluxo.estado = "esperando_hora";
-            await chat.sendMessage("⌚ Qual horário?");
+            await chat.sendMessage(`*${nameBot}*: Anotado! E qual seria o horário? ⌚ (ex: 19:30)`);
             break;
 
         case "esperando_hora":
             fluxo.dados.hora = message.body;
             fluxo.estado = "esperando_pessoas";
-            await chat.sendMessage("👨‍👩‍👧 Quantas pessoas?");
+            await chat.sendMessage(`*${nameBot}*: Ótimo! A reserva será para quantas pessoas? 👨‍👩‍👧 (ex: 5)`);
             break;
 
         case "esperando_pessoas":
             fluxo.dados.pessoas = message.body;
             fluxo.estado = "esperando_obs";
-            await chat.sendMessage("📝 Alguma observação?");
+            await chat.sendMessage(`*${nameBot}*: Estamos quase lá! Você tem alguma observação ou pedido especial? 📝 (ex: mesa perto da janela, comemoração de aniversário, etc.)`);
             break;
 
         case "esperando_obs":
             fluxo.dados.observacao = message.body;
             fluxo.estado = "pergunta_email";
-            await chat.sendMessage("📧 Deseja receber confirmação por e-mail? (sim/não)");
+            await chat.sendMessage(`*${nameBot}*: Legal! Gostaria de receber a confirmação da reserva por e-mail também? 📧 (sim/não)`);
             break;
 
         case "pergunta_email":
             if (message.body.toLowerCase() === "sim") {
                 fluxo.estado = "esperando_email";
-                await chat.sendMessage("Digite seu e-mail:");
+                await chat.sendMessage(`*${nameBot}*: Claro! Qual o seu melhor e-mail? (ex: seuemail@dominio.com)`);
             } else {
                 fluxo.estado = "confirmar";
                 await mostrarResumo(chat, fluxo);
@@ -124,12 +124,13 @@ client.on('message', async message => {
         case "esperando_email":
             fluxo.dados.email = message.body;
             fluxo.estado = "confirmar";
-            await mostrarResumo(chat, fluxo);
+            await mostrarResumo(chat, fluxo); 
             break;
 
         case "confirmar":
-            if (message.body.toLowerCase() === "sim") {
-                await chat.sendMessage("😄 Pode digitar o que deseja alterar.");
+            if (message.body.toLowerCase() === "não") {
+                fluxo.estado = "alterar_reserva_em_criacao";
+                await chat.sendMessage(`*${nameBot}*: Sem problemas! Me diga o que você gostaria de alterar (nome, celular, data, etc.).`);
             } else {
                 // SALVAR NO JSON AQUI
                 salvarReservas({
@@ -142,71 +143,101 @@ client.on('message', async message => {
                     email: fluxo.dados.email || ""
                 });
 
-                await chat.sendMessage("🍕 Sua reserva foi confirmada! Até breve!");
+                await chat.sendMessage(`*${nameBot}*: 🍕 Sua reserva foi confirmada! Até breve!`);
 
                 delete usuarios[userId];
             }
             break;
-        
-        // Ver reserva
-        case "ver_reserva_nome":
-            fluxo.dados.nome = message.body;
-            fluxo.estado = "ver_reserva_celular";
-            await chat.sendMessage("📱 Qual seu número de celular?");
+
+        case "alterar_reserva_em_criacao":
+            const campoParaAlterar = message.body.toLowerCase();
+            const camposValidos = ["nome", "celular", "data", "hora", "pessoas", "observacao", "email"];
+
+            if (camposValidos.includes(campoParaAlterar)) {
+                fluxo.campoEdicao = campoParaAlterar;
+                fluxo.estado = "aguardando_novo_valor";
+                await chat.sendMessage(`*${nameBot}*: Certo! Qual é a nova informação para *${campoParaAlterar}*?`);
+            } else {
+                await chat.sendMessage(`*${nameBot}*: Hmm, não entendi. Por favor, digite um dos campos que aparecem no resumo para que eu possa alterar.`);
+            }
             break;
 
-        case "ver_reserva_celular":
+        case "aguardando_novo_valor":
+            const novoValorReserva = message.body;
+            fluxo.dados[fluxo.campoEdicao] = novoValorReserva;
+            fluxo.estado = "confirmar"; 
+            await chat.sendMessage("Prontinho, informação alterada! ✅");
+            await mostrarResumo(chat, fluxo);
+            break;
+
+
+        // Ver reserva
+        case "ver_reserva_celular_inicio":
             fluxo.dados.celular = message.body;
+            const reservaPorCelular = buscarReservaPorCelular(fluxo.dados.celular);
 
-            const reservaEncontrada = buscarReserva(fluxo.dados.nome, fluxo.dados.celular);
-
-            if (!reservaEncontrada) {
-                await chat.sendMessage("❌ Não encontrei nenhuma reserva 😞");
+            if (!reservaPorCelular) {
+                await chat.sendMessage(`*${nameBot}*: Puxa, não encontrei nenhuma reserva com este número de celular. 😞 Vamos tentar de novo?`); 
                 delete usuarios[userId];
                 return;
             }
 
-            fluxo.reservaEncontrada = reservaEncontrada;
+            fluxo.reservaEncontrada = reservaPorCelular;
+            fluxo.estado = "confirmar_identidade_reserva";
+            await chat.sendMessage(`*${nameBot}*: Encontrei uma reserva em nome de *${reservaPorCelular.nome}*. É você? (sim/não)`);
+            break;
+
+        case "confirmar_identidade_reserva":
+            if (message.body.toLowerCase() !== 'sim') {
+                await chat.sendMessage(`*${nameBot}*: Tudo bem! Se mudar de ideia ou precisar de outra coisa, é só chamar. 😉`);
+                delete usuarios[userId];
+                return;
+            }
+
+            const reservaEncontrada = fluxo.reservaEncontrada;
+
+            if (!reservaEncontrada) {
+                await chat.sendMessage(`*${nameBot}*: Que estranho, não estou conseguindo carregar os dados da sua reserva. 😥`);
+                delete usuarios[userId];
+                return;
+            }
+
             fluxo.estado = "acao_sobre_reserva";
 
-            await chat.sendMessage(`
-                📌 *RESERVA ENCONTRADA*
+            await chat.sendMessage(`*${nameBot}*: 📌 *RESERVA ENCONTRADA*
+Aqui estão os detalhes:
+ Nome: ${reservaEncontrada.nome}
+📱 Celular: ${reservaEncontrada.celular}
+📅 Data: ${reservaEncontrada.data}
+⌚ Hora: ${reservaEncontrada.hora}
+👥 Pessoas: ${reservaEncontrada.pessoas}
+📝 Observação: ${reservaEncontrada.observacao}
+📧 E-mail: ${reservaEncontrada.email || "Não informado"}
 
-                👤 Nome: ${reserva.nome}
-                📱 Celular: ${reserva.celular}
-                📅 Data: ${reservaEncontrada.data}
-                ⌚ Hora: ${reservaEncontrada.hora}
-                👥 Pessoas: ${reservaEncontrada.pessoas}
-                📝 Observação: ${reservaEncontrada.observacao}
-                📧 E-mail: ${reservaEncontrada.email || "Não informado"}
+O que você gostaria de fazer agora?
 
-                O que deseja fazer?
-
-                1️⃣ Alterar  
-                2️⃣ Excluir  
-                3️⃣ Cancelar
-                `);
+1️⃣ Alterar  
+2️⃣ Excluir  
+3️⃣ Cancelar`);
             break;
 
         case "acao_sobre_reserva":
             if (message.body === "1") {
                 fluxo.estado = "escolher_campo";
-                await chat.sendMessage(`
-                    Qual campo deseja alterar?
+                await chat.sendMessage(`*${nameBot}*: Qual campo deseja alterar?
 
-                    1 - Nome  
-                    2 - Celular  
-                    3 - Data  
-                    4 - Hora  
-                    5 - Pessoas  
-                    6 - Observação  
-                    7 - E-mail
-                `);
+1 - Nome  
+2 - Celular  
+3 - Data  
+4 - Hora  
+5 - Pessoas  
+6 - Observação  
+7 - E-mail`);
             }else if (message.body === "2") {
                 fluxo.estado = "confirmar_exclusao";
-                await chat.sendMessage("⚠️ Tem certeza que deseja excluir a reserva? (sim/não)");
-            } else {
-                await chat.sendMessage("👍 Ok, cancelado.");
+                await chat.sendMessage(`*${nameBot}*: ⚠️ Tem certeza que deseja excluir a reserva? (sim/não)`);
+            } else { 
+                await chat.sendMessage("👍 Certo, ação cancelada. Sua reserva continua confirmada!");
                 delete usuarios[userId];
             }
             break;
@@ -225,13 +256,13 @@ client.on('message', async message => {
             };
 
             if (!campos[opcao]) {
-                await chat.sendMessage("Opção inválida. Escolha entre 1 e 7.");
+                await chat.sendMessage(`*${nameBot}*: Opção inválida. Por favor, escolha um número entre 1 e 7.`);
                 return;
             }
 
             fluxo.campoEdicao = campos[opcao];
             fluxo.estado = "alterar_campo";
-            await chat.sendMessage(`Digite o novo valor para *${campos[opcao]}*`);
+            await chat.sendMessage(`*${nameBot}*: Entendi. Por favor, digite a nova informação para *${campos[opcao]}*.`);
             break;
 
         case "alterar_campo":
@@ -246,7 +277,7 @@ client.on('message', async message => {
             );
 
             if (index === -1) {
-                await chat.sendMessage("❌ Erro: reserva não encontrada na base de dados.");
+                await chat.sendMessage("❌ Ops! Ocorreu um erro ao tentar encontrar sua reserva para atualizar. Tente novamente, por favor.");
                 delete usuarios[userId];
                 return;
             }
@@ -257,14 +288,14 @@ client.on('message', async message => {
             // salva
             salvarTodasReservas(lista);
 
-            await chat.sendMessage("✔️ Valor atualizado com sucesso!");
-
+            await chat.sendMessage("✔️ Prontinho! Sua reserva foi atualizada com sucesso!");
+            
             delete usuarios[userId];
             break;
 
         case "confirmar_exclusao":
             if (message.body.toLowerCase() !== "sim") {
-                await chat.sendMessage("Ufa! A reserva não foi excluída 😄");
+                await chat.sendMessage("Ufa, que bom! Sua reserva não foi excluída. 😄");
                 delete usuarios[userId];
                 return;
             }
@@ -278,7 +309,7 @@ client.on('message', async message => {
 
             salvarTodasReservas(filtradas);
 
-            await chat.sendMessage("🗑️ A reserva foi excluída com sucesso.");
+            await chat.sendMessage(`*${nameBot}*: 🗑️ A reserva foi excluída com sucesso.`);
 
             delete usuarios[userId];
             break;
@@ -287,19 +318,17 @@ client.on('message', async message => {
 });
 
 async function mostrarResumo(chat, fluxo) {
-    await chat.sendMessage(`
-    ✨ *RESUMO DA RESERVA* ✨
+    await chat.sendMessage(`*${nameBot}*: ✨ *RESUMO DA RESERVA* ✨
 
-    👤 Nome: ${fluxo.dados.nome}
-    📱 Celular: ${fluxo.dados.celular}
-    📅 Data: ${fluxo.dados.data}
-    ⌚ Hora: ${fluxo.dados.hora}
-    👥 Pessoas: ${fluxo.dados.pessoas}
-    📝 Observação: ${fluxo.dados.observacao}
-    📧 E-mail: ${fluxo.dados.email || "Não informado"}
+👤 Nome: ${fluxo.dados.nome}
+📱 Celular: ${fluxo.dados.celular}
+📅 Data: ${fluxo.dados.data}
+⌚ Hora: ${fluxo.dados.hora}
+👥 Pessoas: ${fluxo.dados.pessoas}
+📝 Observação: ${fluxo.dados.observacao}
+📧 E-mail: ${fluxo.dados.email || "Não informado"}
 
-    Deseja alterar algo? (sim/não)
-    `);
+*${nameBot}*: As informações estão corretas? Se quiser mudar algo, é só dizer "não".`);
 }
 
 client.initialize();

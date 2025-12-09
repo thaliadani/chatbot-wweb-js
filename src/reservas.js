@@ -36,9 +36,19 @@ function buscarReserva(nome, celular) {
     );
 }
 
+// Buscar reserva por celular no arquivo json
+function buscarReservaPorCelular(celular) {
+    const reservas = carregarReservas();
+
+    return reservas.find(r =>
+        r.celular.replace(/\D/g, "") === celular.replace(/\D/g, "")
+    );
+}
+
 module.exports = {
     carregarReservas,
     salvarReservas,
     salvarTodasReservas,
-    buscarReserva
+    buscarReserva,
+    buscarReservaPorCelular
 };
