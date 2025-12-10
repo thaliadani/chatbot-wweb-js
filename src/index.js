@@ -1,6 +1,6 @@
 const qrcode = require('qrcode-terminal');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const { salvarReservas, buscarReserva, carregarReservas, salvarTodasReservas, buscarReservaPorCelular } = require('./reservas.js')
+const { salvarReservas, carregarReservas, salvarTodasReservas, buscarReservaPorCelular } = require('./reservas.js')
 
 const client = new Client({
     authStrategy: new LocalAuth({
@@ -315,6 +315,8 @@ O que você gostaria de fazer agora?
             break;
 
     }
+
+    await chat.sendMessage(`*${nameBot}*: Desculpe 😞, não entendi sua mensagem.`);
 });
 
 async function mostrarResumo(chat, fluxo) {

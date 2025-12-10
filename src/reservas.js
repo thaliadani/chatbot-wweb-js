@@ -26,16 +26,6 @@ function salvarTodasReservas(reservas) {
     fs.writeFileSync(reservasPath, JSON.stringify(reservas, null, 4), "utf8");
 }
 
-// Buscar reserva no arquivo json
-function buscarReserva(nome, celular) {
-    const reservas = carregarReservas();
-
-    return reservas.find(r =>
-        r.nome.toLowerCase() === nome.toLowerCase() &&
-        r.celular.replace(/\D/g, "") === celular.replace(/\D/g, "")
-    );
-}
-
 // Buscar reserva por celular no arquivo json
 function buscarReservaPorCelular(celular) {
     const reservas = carregarReservas();
@@ -49,6 +39,5 @@ module.exports = {
     carregarReservas,
     salvarReservas,
     salvarTodasReservas,
-    buscarReserva,
     buscarReservaPorCelular
 };
