@@ -94,7 +94,7 @@ O _chatbot_ foi configurado para responder a comandos específicos (geralmente p
 
 **Exemplo de Configuração:**
 
-Para customizar as respostas, você deve editar o arquivo principal (provavelmente `index.js` ou `app.js`) na seção onde as mensagens são processadas:
+Para customizar as respostas, você deve editar o arquivo `index.js` na seção onde as mensagens são processadas:
 
 JavaScript
 
